@@ -1,5 +1,7 @@
 # vue-rx [![Build Status](https://circleci.com/gh/vuejs/vue-rx/tree/master.svg?style=shield)](https://circleci.com/gh/vuejs/vue-rx/tree/master)
 
+English | [简体中文](README-CN.md)
+
 Simple [RxJS](https://github.com/Reactive-Extensions/RxJS) binding for Vue.js. It also supports subscriptions for generic observables that implement the `.subscribe` and `.unsubscribe` (or `.dispose`) interface. For example, you can use it to subscribe to `most.js` or Falcor streams, but some features require RxJS to work.
 
 ### Installation
@@ -183,6 +185,30 @@ vm.$watchAsObservable('a')
 
 The optional `options` object accepts the same options as `vm.$watch`.
 
+#### `$eventToObservable(event)`
+
+> This feature requires RxJS.
+
+Convert vue.$on (including lifecycle events) to Observables. The emitted value is in the format of `{ name, msg }`:
+
+``` js
+var vm = new Vue({
+  created () {
+    this.$eventToObservable('customEvent')
+	  .subscribe((event) => console.log(event.name,event.msg))
+  }
+})
+
+// vm.$once vue-rx version
+this.$eventToObservable('customEvent')
+  .take(1)
+
+// Another way to auto unsub:
+let beforeDestroy$ = this.$eventToObservable('hook:beforeDestroy').take(1)
+Rx.Observable.interval(500)
+  .takeUntil(beforeDestroy$)
+```
+
 #### `$subscribeTo(observable, next, error, complete)`
 
 This is a prototype method added to instances. You can use it to subscribe to an observable, but let VueRx manage the dispose/unsubscribe.
@@ -214,6 +240,46 @@ var vm = new Vue({
   }
 })
 ```
+
+#### `$createObservableMethod(methodName)`
+
+> This feature requires RxJS.
+
+Convert function calls to observable sequence which emits the call arguments.
+
+This is a prototype method added to instances. Use it to create a shared hot observable from a function name. The function will be assigned as a vm method.
+
+```html
+<custom-form :onSubmit="submitHandler"></custom-form>
+```
+``` js
+var vm = new Vue({
+  subscriptions () {
+    return {
+      // requires `share` operator
+      formData: this.$createObservableMethod('submitHandler')
+    }
+  }
+})
+```
+
+You can use the `observableMethods` option to make it more declarative:
+
+``` js
+new Vue({
+  observableMethods: {
+    submitHandler:'submitHandler$'
+    // or with Array shothand: ['submitHandler']
+  }
+})
+```
+
+The above will automatically create two things on the instance:
+
+1. A `submitHandler` method which can be bound to in template with `v-on`;
+2. A `submitHandler$` observable which will be the stream emitting calls to `submitHandler`.
+
+[example](https://github.com/vuejs/vue-rx/blob/master/example/counter-function.html)
 
 ### Caveats
 
